@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
-import java.time.LocalDate;
+import java.util.Date;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DataJpaTest
@@ -33,7 +33,7 @@ class PetRepositoryTests {
 
         Pet pet = new Pet();
         pet.setName("Max");
-        pet.setBirthDate(LocalDate.now().minusYears(2));
+        pet.setBirthDate(new Date());
         pet.setType(type);
         pet.setOwner(owner);
         entityManager.persist(pet);
@@ -64,7 +64,7 @@ class PetRepositoryTests {
 
         Pet pet = new Pet();
         pet.setName("Whiskers");
-        pet.setBirthDate(LocalDate.now().minusYears(1));
+        pet.setBirthDate(new Date());
         pet.setType(type);
         pet.setOwner(owner);
 

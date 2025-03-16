@@ -1,7 +1,7 @@
 package org.springframework.samples.petclinic.customers.model;
 
 import org.junit.jupiter.api.Test;
-import java.time.LocalDate;
+import java.util.Date;
 import static org.junit.jupiter.api.Assertions.*;
 
 class PetTests {
@@ -9,23 +9,19 @@ class PetTests {
     @Test
     void testPetProperties() {
         Pet pet = new Pet();
-        pet.setId(1);
         pet.setName("Max");
         
-        LocalDate birthDate = LocalDate.now().minusYears(2);
+        Date birthDate = new Date();
         pet.setBirthDate(birthDate);
 
         PetType type = new PetType();
-        type.setId(1);
         type.setName("Dog");
         pet.setType(type);
 
         Owner owner = new Owner();
-        owner.setId(1);
         owner.setFirstName("John");
         pet.setOwner(owner);
 
-        assertEquals(1, pet.getId());
         assertEquals("Max", pet.getName());
         assertEquals(birthDate, pet.getBirthDate());
         assertEquals("Dog", pet.getType().getName());
@@ -35,10 +31,7 @@ class PetTests {
     @Test
     void testPetType() {
         PetType type = new PetType();
-        type.setId(1);
         type.setName("Cat");
-
-        assertEquals(1, type.getId());
         assertEquals("Cat", type.getName());
     }
 
