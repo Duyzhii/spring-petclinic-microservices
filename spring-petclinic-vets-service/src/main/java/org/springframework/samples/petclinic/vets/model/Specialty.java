@@ -49,4 +49,6 @@ public class Specialty {
     // This comment is made to test jenkins
 
     /// Test comments
+    /// 
+    // Another test comments
 }
