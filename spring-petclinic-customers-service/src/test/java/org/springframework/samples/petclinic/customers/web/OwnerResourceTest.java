@@ -8,6 +8,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.samples.petclinic.customers.model.Owner;
 import org.springframework.samples.petclinic.customers.model.OwnerRepository;
+import org.springframework.samples.petclinic.customers.web.mapper.OwnerEntityMapper;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -30,6 +31,9 @@ class OwnerResourceTest {
 
     @MockBean
     OwnerRepository ownerRepository;
+
+    @MockBean
+    OwnerEntityMapper ownerEntityMapper;
 
     @Test
     void shouldGetOwner() throws Exception {
@@ -69,6 +73,7 @@ class OwnerResourceTest {
         owner.setCity("Springfield");
         owner.setTelephone("1234567890");
 
+        given(ownerEntityMapper.map(any(Owner.class), any(OwnerRequest.class))).willReturn(owner);
         given(ownerRepository.save(any(Owner.class))).willReturn(owner);
 
         mvc.perform(post("/owners")
@@ -89,6 +94,7 @@ class OwnerResourceTest {
         owner.setLastName("Doe");
 
         given(ownerRepository.findById(1)).willReturn(Optional.of(owner));
+        given(ownerEntityMapper.map(any(Owner.class), any(OwnerRequest.class))).willReturn(owner);
         given(ownerRepository.save(any(Owner.class))).willReturn(owner);
 
         mvc.perform(put("/owners/1")
