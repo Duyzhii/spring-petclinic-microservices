@@ -139,4 +139,15 @@ public class Owner {
     public void setTelephone(String telephone) {
         this.telephone = telephone;
     }
+
+    public Pet getPet(String name, boolean ignoreNew) {
+        name = name.toLowerCase();
+        for (Pet pet : getPetsInternal()) {
+            String compName = pet.getName();
+            if (compName != null && compName.toLowerCase().equals(name)) {
+                return pet;
+            }
+        }
+        return null;
+    }
 }
