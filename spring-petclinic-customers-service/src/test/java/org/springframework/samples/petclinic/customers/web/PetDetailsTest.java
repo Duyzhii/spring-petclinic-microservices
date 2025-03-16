@@ -1,6 +1,7 @@
 package org.springframework.samples.petclinic.customers.web;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.samples.petclinic.customers.model.Owner;
 import org.springframework.samples.petclinic.customers.model.Pet;
 import org.springframework.samples.petclinic.customers.model.PetType;
 
@@ -12,18 +13,17 @@ class PetDetailsTest {
 
     @Test
     void testCreatePetDetails() {
-        PetDetails petDetails = new PetDetails();
-        petDetails.setId(1);
-        petDetails.setName("Max");
-        petDetails.setBirthDate(new Date());
-        petDetails.setTypeId(2);
-        petDetails.setOwnerId(3);
+        Date birthDate = new Date();
+        PetType type = new PetType();
+        type.setName("Dog");
 
-        assertEquals(1, petDetails.getId());
-        assertEquals("Max", petDetails.getName());
-        assertNotNull(petDetails.getBirthDate());
-        assertEquals(2, petDetails.getTypeId());
-        assertEquals(3, petDetails.getOwnerId());
+        PetDetails petDetails = new PetDetails(1L, "Max", "John Doe", birthDate, type);
+
+        assertEquals(1L, petDetails.id());
+        assertEquals("Max", petDetails.name());
+        assertEquals("John Doe", petDetails.owner());
+        assertEquals(birthDate, petDetails.birthDate());
+        assertEquals(type, petDetails.type());
     }
 
     @Test
@@ -36,13 +36,20 @@ class PetDetailsTest {
 
         PetType type = new PetType();
         type.setId(2);
+        type.setName("Dog");
         pet.setType(type);
+
+        Owner owner = new Owner();
+        owner.setFirstName("John");
+        owner.setLastName("Doe");
+        pet.setOwner(owner);
 
         PetDetails petDetails = new PetDetails(pet);
 
-        assertEquals(1, petDetails.getId());
-        assertEquals("Max", petDetails.getName());
-        assertEquals(birthDate, petDetails.getBirthDate());
-        assertEquals(2, petDetails.getTypeId());
+        assertEquals(1L, petDetails.id());
+        assertEquals("Max", petDetails.name());
+        assertEquals("John Doe", petDetails.owner());
+        assertEquals(birthDate, petDetails.birthDate());
+        assertEquals(type, petDetails.type());
     }
 } 
