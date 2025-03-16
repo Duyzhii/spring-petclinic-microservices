@@ -45,4 +45,8 @@ public class Specialty {
     public void setName(String name) {
         this.name = name;
     }
+
+    // This comment is made to test jenkins
+
+    /// Test comments
 }
