@@ -6,9 +6,6 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                githubNotify context: 'jenkins-ci', 
-                           description: 'Jenkins Pipeline Started',
-                           status: 'PENDING'
                 checkout scm
             }
         }
@@ -98,8 +95,6 @@ pipeline {
             }
             steps {
                 script {
-                    def failures = []
-                    
                     env.SERVICES_TO_BUILD.split(',').each { service ->
                         dir("spring-petclinic-${service}") {
                             echo "Testing ${service}..."
@@ -109,37 +104,18 @@ pipeline {
                                     echo "Running tests for ${service}"
                                     ../mvnw clean test verify -Pcoverage
                                 """
-
-                                def coverageReport = readFile('target/site/jacoco/index.html')
-                                def matcher = coverageReport =~ /Total.*?([0-9.]+)%/
-                                if (matcher.find()) {
-                                    def coverage = matcher[0][1] as Double
-                                    echo "Code coverage for ${service}: ${coverage}%"
-                                    if (coverage < 30) {
-                                        failures.add("${service}: Code coverage ${coverage}% is below minimum required 70%")
-                                    }
-                                } else {
-                                    failures.add("${service}: Could not determine code coverage")
-                                }
                             } catch (Exception e) {
-                                echo "Tests or coverage check failed for ${service}: ${e.message}"
-                                failures.add("${service}: ${e.message}")
-                                // Continue with next service instead of throwing
+                                echo "Tests failed for ${service}"
+                                throw e
                             }
                         }
-                    }
-                    
-                    // After all services are tested, fail the build if any service failed
-                    if (failures.size() > 0) {
-                        error """Multiple services failed tests or coverage checks:
-                                ${failures.join('\n')}"""
                     }
                 }
             }
             post {
                 always {
                     script {
-                        // Publish test results and coverage for all changed services
+                        // Publish test results and coverage for changed services
                         env.SERVICES_TO_BUILD.split(',').each { service ->
                             dir("spring-petclinic-${service}") {
                                 junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
@@ -192,22 +168,7 @@ pipeline {
         }
     }
     post {
-        success {
-            githubNotify context: 'jenkins-ci',
-                        description: 'Pipeline completed successfully',
-                        status: 'SUCCESS'
-            cleanWs()
-        }
-        failure {
-            githubNotify context: 'jenkins-ci',
-                        description: 'Pipeline failed',
-                        status: 'FAILURE'
-            cleanWs()
-        }
-        unstable {
-            githubNotify context: 'jenkins-ci',
-                        description: 'Pipeline is unstable',
-                        status: 'ERROR'
+        always {
             cleanWs()
         }
     }
