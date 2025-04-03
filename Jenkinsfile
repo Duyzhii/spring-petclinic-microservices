@@ -25,11 +25,18 @@ pipeline {
         GIT_REPO_URL = 'https://github.com/Duyzhii/spring-petclinic-microservices.git'
         // Services list
         SERVICES = 'customers-service,vets-service,visits-service,api-gateway,config-server,discovery-server,admin-server'
-        // Store image tags for each service
-        IMAGE_TAGS = [:]
     }
 
     stages {
+        stage('Initialize') {
+            steps {
+                script {
+                    // Initialize the IMAGE_TAGS map here instead of in the environment block
+                    IMAGE_TAGS = [:]
+                }
+            }
+        }
+        
         stage('Checkout') {
             steps {
                 script {
@@ -228,7 +235,7 @@ spec:
                     
                     // Delete all resources in the namespace
                     sh "kubectl delete namespace petclinic-dev"
-                    
+                
                     echo "Developer environment has been cleaned up"
                 }
             }
@@ -248,7 +255,7 @@ spec:
         success {
             echo "Pipeline completed successfully!"
             
-            // Create a link to the cleanup job - this assumes you'll create a separate job named "cleanup_developer_build"
+            // Create a link to the cleanup job
             echo """
 <h2>Developer Environment Information</h2>
 <p>To clean up this deployment, run this job again with the CLEANUP parameter set to true or click <a href="${env.JENKINS_URL}job/developer_build/build?delay=0sec&CLEANUP=true">here</a></p>
