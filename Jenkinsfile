@@ -248,11 +248,13 @@ pipeline {
             cleanWs()
         }
 
-        sh "docker logout"
 
         
         success {
             echo "Pipeline completed successfully!"
+
+            sh "docker logout"
+
             
             // Create a link to the cleanup job
             echo """
