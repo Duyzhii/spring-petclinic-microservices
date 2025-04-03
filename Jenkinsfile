@@ -36,25 +36,28 @@ pipeline {
                 }
             }
         }
+
         
         stage('Checkout') {
             steps {
                 script {
                     // Clean workspace
                     deleteDir()
-                    
-                    // Checkout all branches
+
+                    // Duyệt qua tất cả các dịch vụ và chỉ checkout dịch vụ cần thiết
                     def serviceList = env.SERVICES.split(',')
                     for (service in serviceList) {
+                        // Lấy tên parameter branch tương ứng với dịch vụ
                         def branchParam = service.toUpperCase().replaceAll('-', '_')
                         def branch = params[branchParam]
                         
+                        // Chỉ checkout dịch vụ cần thiết
                         echo "Checking out ${service} from branch ${branch}"
                         
                         dir(service) {
                             checkout([
                                 $class: 'GitSCM',
-                                branches: [[name: "*/${branch}"]],
+                                branches: [[name: "*/${branch}"]],  // Checkout nhánh được chỉ định
                                 doGenerateSubmoduleConfigurations: false,
                                 extensions: [],
                                 submoduleCfg: [],
@@ -67,6 +70,37 @@ pipeline {
                 }
             }
         }
+        
+        // stage('Checkout') {
+        //     steps {
+        //         script {
+        //             // Clean workspace
+        //             deleteDir()
+                    
+        //             // Checkout all branches
+        //             def serviceList = env.SERVICES.split(',')
+        //             for (service in serviceList) {
+        //                 def branchParam = service.toUpperCase().replaceAll('-', '_')
+        //                 def branch = params[branchParam]
+                        
+        //                 echo "Checking out ${service} from branch ${branch}"
+                        
+        //                 dir(service) {
+        //                     checkout([
+        //                         $class: 'GitSCM',
+        //                         branches: [[name: "*/${branch}"]],
+        //                         doGenerateSubmoduleConfigurations: false,
+        //                         extensions: [],
+        //                         submoduleCfg: [],
+        //                         userRemoteConfigs: [[
+        //                             url: "${GIT_REPO_URL}"
+        //                         ]]
+        //                     ])
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
         
         stage('Build and Push Docker Images') {
             steps {
