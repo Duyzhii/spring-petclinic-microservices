@@ -20,6 +20,7 @@ pipeline {
         // Kubernetes config
         // KUBECONFIG = credentials('kubeconfig')
         // Docker Hub username
+        DOCKERHUB_CREDENTIALS = 'duyzhii-dockerhub'
         DOCKER_HUB_USERNAME = 'duyzhii'
         // Base domain for developer testing
         BASE_DOMAIN = 'petclinic.local'
@@ -76,6 +77,9 @@ pipeline {
                             // Build Docker image with commit ID as tag
                             sh "docker build -t ${DOCKER_HUB_USERNAME}/${service}:${commitId} ."
                             
+                            // Login to Docker Hub
+                            sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKER_HUB_USERNAME --password-stdin'
+
                             // Push image to Docker Hub
                             sh "docker push ${DOCKER_HUB_USERNAME}/${service}:${commitId}"
                             
@@ -84,6 +88,7 @@ pipeline {
                                 sh "docker tag ${DOCKER_HUB_USERNAME}/${service}:${commitId} ${DOCKER_HUB_USERNAME}/${service}:latest"
                                 sh "docker push ${DOCKER_HUB_USERNAME}/${service}:latest"
                             }
+
                         }
                     }
                 }
@@ -242,6 +247,9 @@ pipeline {
             // Clean workspace
             cleanWs()
         }
+
+        sh "docker logout"
+
         
         success {
             echo "Pipeline completed successfully!"
