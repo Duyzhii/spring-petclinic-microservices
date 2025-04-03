@@ -45,4 +45,6 @@ public class Specialty {
     public void setName(String name) {
         this.name = name;
     }
+
+    // Add comments to test the commit
 }
