@@ -72,9 +72,10 @@ pipeline {
             steps {
                 script {
                     // Login to Docker Hub at the beginning
-                    withCredentials([string(credentialsId: DOCKERHUB_CREDENTIALS, variable: 'DOCKER_PWD')]) {
-                        sh "echo ${DOCKER_PWD} | docker login -u ${DOCKER_HUB_USERNAME} --password-stdin"
-                    }
+                    // withCredentials([string(credentialsId: DOCKERHUB_CREDENTIALS, variable: 'DOCKER_PWD')]) {
+                    //     sh "echo ${DOCKER_PWD} | docker login -u ${DOCKER_HUB_USERNAME} --password-stdin"
+                    // }
+                    sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKER_HUB_USERNAME --password-stdin'
                     
                     def serviceList = env.SERVICES.split(',')
                     for (service in serviceList) {
