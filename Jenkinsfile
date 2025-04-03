@@ -90,151 +90,151 @@ pipeline {
             }
         }
         
-        stage('Deploy to Kubernetes') {
-            when {
-                expression { !params.CLEANUP }
-            }
-            steps {
-                script {
-                    // Make sure kubectl uses the correct config
-                    sh "mkdir -p \$HOME/.kube"
-                    sh "cp ${KUBECONFIG} \$HOME/.kube/config"
+//         stage('Deploy to Kubernetes') {
+//             when {
+//                 expression { !params.CLEANUP }
+//             }
+//             steps {
+//                 script {
+//                     // Make sure kubectl uses the correct config
+//                     sh "mkdir -p \$HOME/.kube"
+//                     sh "cp ${KUBECONFIG} \$HOME/.kube/config"
                     
-                    // Create or ensure namespace exists
-                    sh "kubectl create namespace petclinic-dev --dry-run=client -o yaml | kubectl apply -f -"
+//                     // Create or ensure namespace exists
+//                     sh "kubectl create namespace petclinic-dev --dry-run=client -o yaml | kubectl apply -f -"
                     
-                    def serviceList = env.SERVICES.split(',')
-                    for (service in serviceList) {
-                        def branchParam = service.toUpperCase().replaceAll('-', '_')
-                        def branch = params[branchParam]
+//                     def serviceList = env.SERVICES.split(',')
+//                     for (service in serviceList) {
+//                         def branchParam = service.toUpperCase().replaceAll('-', '_')
+//                         def branch = params[branchParam]
                         
-                        dir(service) {
-                            def commitId = sh(script: "git rev-parse HEAD", returnStdout: true).trim()
-                            def imageTag = commitId
+//                         dir(service) {
+//                             def commitId = sh(script: "git rev-parse HEAD", returnStdout: true).trim()
+//                             def imageTag = commitId
                             
-                            // If this is main branch and not a developer build, use 'latest' tag
-                            if (branch == 'main') {
-                                def isDeveloperBuild = false
-                                for (param in params) {
-                                    if (param.key.endsWith('_SERVICE') && param.value != 'main') {
-                                        isDeveloperBuild = true
-                                        break
-                                    }
-                                }
+//                             // If this is main branch and not a developer build, use 'latest' tag
+//                             if (branch == 'main') {
+//                                 def isDeveloperBuild = false
+//                                 for (param in params) {
+//                                     if (param.key.endsWith('_SERVICE') && param.value != 'main') {
+//                                         isDeveloperBuild = true
+//                                         break
+//                                     }
+//                                 }
                                 
-                                if (!isDeveloperBuild) {
-                                    imageTag = 'latest'
-                                }
-                            }
+//                                 if (!isDeveloperBuild) {
+//                                     imageTag = 'latest'
+//                                 }
+//                             }
                             
-                            // Generate deployment YAML
-                            writeFile file: "${service}-deployment.yaml", text: """
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: ${service}
-  namespace: petclinic-dev
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: ${service}
-  template:
-    metadata:
-      labels:
-        app: ${service}
-    spec:
-      containers:
-      - name: ${service}
-        image: ${DOCKER_HUB_USERNAME}/${service}:${imageTag}
-        ports:
-        - containerPort: 8080
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: ${service}
-  namespace: petclinic-dev
-spec:
-  type: NodePort
-  ports:
-  - port: 8080
-    targetPort: 8080
-  selector:
-    app: ${service}
-"""
+//                             // Generate deployment YAML
+//                             writeFile file: "${service}-deployment.yaml", text: """
+// apiVersion: apps/v1
+// kind: Deployment
+// metadata:
+//   name: ${service}
+//   namespace: petclinic-dev
+// spec:
+//   replicas: 1
+//   selector:
+//     matchLabels:
+//       app: ${service}
+//   template:
+//     metadata:
+//       labels:
+//         app: ${service}
+//     spec:
+//       containers:
+//       - name: ${service}
+//         image: ${DOCKER_HUB_USERNAME}/${service}:${imageTag}
+//         ports:
+//         - containerPort: 8080
+// ---
+// apiVersion: v1
+// kind: Service
+// metadata:
+//   name: ${service}
+//   namespace: petclinic-dev
+// spec:
+//   type: NodePort
+//   ports:
+//   - port: 8080
+//     targetPort: 8080
+//   selector:
+//     app: ${service}
+// """
                             
-                            // Apply deployment
-                            sh "kubectl apply -f ${service}-deployment.yaml"
-                        }
-                    }
+//                             // Apply deployment
+//                             sh "kubectl apply -f ${service}-deployment.yaml"
+//                         }
+//                     }
                     
-                    // Create Ingress for developer testing
-                    writeFile file: "ingress.yaml", text: """
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: petclinic-ingress
-  namespace: petclinic-dev
-  annotations:
-    kubernetes.io/ingress.class: nginx
-spec:
-  rules:
-  - host: ${BASE_DOMAIN}
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: api-gateway
-            port:
-              number: 8080
-"""
+//                     // Create Ingress for developer testing
+//                     writeFile file: "ingress.yaml", text: """
+// apiVersion: networking.k8s.io/v1
+// kind: Ingress
+// metadata:
+//   name: petclinic-ingress
+//   namespace: petclinic-dev
+//   annotations:
+//     kubernetes.io/ingress.class: nginx
+// spec:
+//   rules:
+//   - host: ${BASE_DOMAIN}
+//     http:
+//       paths:
+//       - path: /
+//         pathType: Prefix
+//         backend:
+//           service:
+//             name: api-gateway
+//             port:
+//               number: 8080
+// """
                     
-                    sh "kubectl apply -f ingress.yaml"
+//                     sh "kubectl apply -f ingress.yaml"
                     
-                    // Get NodePort for each service
-                    def serviceNodePorts = [:]
-                    for (service in serviceList) {
-                        def nodePort = sh(
-                            script: "kubectl get svc ${service} -n petclinic-dev -o jsonpath='{.spec.ports[0].nodePort}'",
-                            returnStdout: true
-                        ).trim()
-                        serviceNodePorts[service] = nodePort
-                    }
+//                     // Get NodePort for each service
+//                     def serviceNodePorts = [:]
+//                     for (service in serviceList) {
+//                         def nodePort = sh(
+//                             script: "kubectl get svc ${service} -n petclinic-dev -o jsonpath='{.spec.ports[0].nodePort}'",
+//                             returnStdout: true
+//                         ).trim()
+//                         serviceNodePorts[service] = nodePort
+//                     }
                     
-                    // Print access information
-                    echo "================== Access Information =================="
-                    echo "Add the following to your /etc/hosts file:"
-                    echo "<worker-node-ip> ${BASE_DOMAIN}"
-                    echo ""
-                    echo "Service endpoints:"
-                    for (service in serviceList) {
-                        echo "${service}: http://${BASE_DOMAIN}:${serviceNodePorts[service]}"
-                    }
-                    echo "====================================================="
-                }
-            }
-        }
+//                     // Print access information
+//                     echo "================== Access Information =================="
+//                     echo "Add the following to your /etc/hosts file:"
+//                     echo "<worker-node-ip> ${BASE_DOMAIN}"
+//                     echo ""
+//                     echo "Service endpoints:"
+//                     for (service in serviceList) {
+//                         echo "${service}: http://${BASE_DOMAIN}:${serviceNodePorts[service]}"
+//                     }
+//                     echo "====================================================="
+//                 }
+//             }
+//         }
         
-        stage('Cleanup Developer Environment') {
-            when {
-                expression { params.CLEANUP }
-            }
-            steps {
-                script {
-                    // Make sure kubectl uses the correct config
-                    sh "mkdir -p \$HOME/.kube"
-                    sh "cp ${KUBECONFIG} \$HOME/.kube/config"
+//         stage('Cleanup Developer Environment') {
+//             when {
+//                 expression { params.CLEANUP }
+//             }
+//             steps {
+//                 script {
+//                     // Make sure kubectl uses the correct config
+//                     sh "mkdir -p \$HOME/.kube"
+//                     sh "cp ${KUBECONFIG} \$HOME/.kube/config"
                     
-                    // Delete all resources in the namespace
-                    sh "kubectl delete namespace petclinic-dev"
+//                     // Delete all resources in the namespace
+//                     sh "kubectl delete namespace petclinic-dev"
                     
-                    echo "Developer environment has been cleaned up"
-                }
-            }
-        }
+//                     echo "Developer environment has been cleaned up"
+//                 }
+//             }
+//         }
     }
     
     post {
