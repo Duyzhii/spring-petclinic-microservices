@@ -18,7 +18,7 @@ pipeline {
     
     environment {
         // Kubernetes config
-        KUBECONFIG = credentials('kubeconfig')
+        // KUBECONFIG = credentials('kubeconfig')
         // Docker Hub username
         DOCKER_HUB_USERNAME = 'duyzhii'
         // Base domain for developer testing
