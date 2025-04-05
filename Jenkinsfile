@@ -62,7 +62,7 @@ pipeline {
                                 extensions: [],
                                 submoduleCfg: [],
                                 userRemoteConfigs: [[
-                                    url: "${GIT_REPO_URL}"````  
+                                    url: "${GIT_REPO_URL}"
                                 ]]
                             ])
                         }
