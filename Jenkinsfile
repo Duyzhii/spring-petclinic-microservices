@@ -62,7 +62,7 @@ pipeline {
                                 extensions: [],
                                 submoduleCfg: [],
                                 userRemoteConfigs: [[
-                                    url: "${GIT_REPO_URL}"
+                                    url: "${GIT_REPO_URL}"````  
                                 ]]
                             ])
                         }
@@ -128,7 +128,9 @@ pipeline {
                             } else {
                                 IMAGE_TAGS[service] = commitId
                             }
-                            
+
+                        
+                            export DOCKER_BUILDKIT=0
                             // Build Docker image with commit ID as tag
                             sh "docker build -t ${DOCKER_HUB_USERNAME}/${service}:${commitId} ."
                             
