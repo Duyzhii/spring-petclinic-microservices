@@ -44,14 +44,11 @@ pipeline {
                     // Clean workspace
                     deleteDir()
 
-                    // Duyệt qua tất cả các dịch vụ và chỉ checkout dịch vụ cần thiết
                     def serviceList = env.SERVICES.split(',')
                     for (service in serviceList) {
-                        // Lấy tên parameter branch tương ứng với dịch vụ
                         def branchParam = service.toUpperCase().replaceAll('-', '_')
                         def branch = params[branchParam]
                         
-                        // Chỉ checkout dịch vụ cần thiết
                         echo "Checking out ${service} from branch ${branch}"
                         
                         dir(service) {
@@ -62,7 +59,7 @@ pipeline {
                                 extensions: [],
                                 submoduleCfg: [],
                                 userRemoteConfigs: [[
-                                    url: "${GIT_REPO_URL}"
+                                    url: "${GIT_REPO_URL}"````  
                                 ]]
                             ])
                         }
@@ -70,38 +67,7 @@ pipeline {
                 }
             }
         }
-        
-        // stage('Checkout') {
-        //     steps {
-        //         script {
-        //             // Clean workspace
-        //             deleteDir()
-                    
-        //             // Checkout all branches
-        //             def serviceList = env.SERVICES.split(',')
-        //             for (service in serviceList) {
-        //                 def branchParam = service.toUpperCase().replaceAll('-', '_')
-        //                 def branch = params[branchParam]
-                        
-        //                 echo "Checking out ${service} from branch ${branch}"
-                        
-        //                 dir(service) {
-        //                     checkout([
-        //                         $class: 'GitSCM',
-        //                         branches: [[name: "*/${branch}"]],
-        //                         doGenerateSubmoduleConfigurations: false,
-        //                         extensions: [],
-        //                         submoduleCfg: [],
-        //                         userRemoteConfigs: [[
-        //                             url: "${GIT_REPO_URL}"
-        //                         ]]
-        //                     ])
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-        
+
         stage('Build and Push Docker Images') {
             steps {
                 script {
@@ -128,10 +94,15 @@ pipeline {
                             } else {
                                 IMAGE_TAGS[service] = commitId
                             }
-                            
+
+                        
+                            export DOCKER_BUILDKIT=0
                             // Build Docker image with commit ID as tag
-                            sh "docker build -t ${DOCKER_HUB_USERNAME}/${service}:${commitId} ."
-                            
+                            sh "ls -R"
+                            ls -l docker
+                            sh "docker build -f ../docker/Dockerfile -t ${DOCKER_HUB_USERNAME}/${service}:${commitId} ."
+                            sh "docker build -f /var/lib/jenkins/workspace/ci-cd-spring-petclinic@2/docker/Dockerfile -t ${DOCKER_HUB_USERNAME}/${service}:${commitId} ."
+
                             // Push image to Docker Hub
                             sh "docker push ${DOCKER_HUB_USERNAME}/${service}:${commitId}"
                             
