@@ -132,6 +132,8 @@ pipeline {
                         
                             export DOCKER_BUILDKIT=0
                             // Build Docker image with commit ID as tag
+                            sh "ls -R"
+                            ls -l docker
                             sh "docker build -f docker/Dockerfile -t ${DOCKER_HUB_USERNAME}/${service}:${commitId} ."
                             
                             // Push image to Docker Hub
