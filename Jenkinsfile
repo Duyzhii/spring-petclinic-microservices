@@ -156,10 +156,12 @@ pipeline {
                                   -t ${DOCKER_HUB_USERNAME}/${service}:${commitId} \
                                   -f docker/Dockerfile .
                             """
+
+                            echo "Pushing ${service} image to Docker Hub with tag ${commitId}"
                             
                             // Push image to Docker Hub with commit ID tag
                             sh "docker push ${DOCKER_HUB_USERNAME}/${service}:${commitId}"
-                            
+                        
                             // If this is the main branch, also tag as latest and push
                             if (branch == 'main') {
                                 sh "docker tag ${DOCKER_HUB_USERNAME}/${service}:${commitId} ${DOCKER_HUB_USERNAME}/${service}:latest"
