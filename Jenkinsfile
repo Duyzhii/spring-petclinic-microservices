@@ -144,6 +144,8 @@ pipeline {
                                 default:
                                     error("Unknown service: ${service}")
                             }
+                           def DOCKER_BUILDKIT = '1'
+
 
                             // Build Docker image with commit ID as tag
                             sh """
