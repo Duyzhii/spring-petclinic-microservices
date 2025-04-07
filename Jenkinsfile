@@ -31,12 +31,16 @@ pipeline {
         stage('Initialize') {
             steps {
                 script {
-                    // Initialize the IMAGE_TAGS map here instead of in the environment block
+                    // Initialize the IMAGE_TAGS map
                     IMAGE_TAGS = [:]
+                    
+                    if (params.CLEANUP) {
+                        echo "Cleaning up developer environment..."
+                        // Add cleanup commands here if needed
+                    }
                 }
             }
         }
-
         
         stage('Checkout') {
             steps {
@@ -44,25 +48,24 @@ pipeline {
                     // Clean workspace
                     deleteDir()
 
-                    // Duyệt qua tất cả các dịch vụ và chỉ checkout dịch vụ cần thiết
+                    // Iterate through all services and checkout only the necessary ones
                     def serviceList = env.SERVICES.split(',')
                     for (service in serviceList) {
-                        // Lấy tên parameter branch tương ứng với dịch vụ
+                        // Get the branch parameter name corresponding to the service
                         def branchParam = service.toUpperCase().replaceAll('-', '_')
                         def branch = params[branchParam]
                         
-                        // Chỉ checkout dịch vụ cần thiết
                         echo "Checking out ${service} from branch ${branch}"
                         
                         dir(service) {
                             checkout([
                                 $class: 'GitSCM',
-                                branches: [[name: "*/${branch}"]],  // Checkout nhánh được chỉ định
+                                branches: [[name: "*/${branch}"]],
                                 doGenerateSubmoduleConfigurations: false,
                                 extensions: [],
                                 submoduleCfg: [],
                                 userRemoteConfigs: [[
-                                    url: "${GIT_REPO_URL}"````  
+                                    url: "${GIT_REPO_URL}"
                                 ]]
                             ])
                         }
@@ -71,44 +74,24 @@ pipeline {
             }
         }
         
-        // stage('Checkout') {
-        //     steps {
-        //         script {
-        //             // Clean workspace
-        //             deleteDir()
-                    
-        //             // Checkout all branches
-        //             def serviceList = env.SERVICES.split(',')
-        //             for (service in serviceList) {
-        //                 def branchParam = service.toUpperCase().replaceAll('-', '_')
-        //                 def branch = params[branchParam]
-                        
-        //                 echo "Checking out ${service} from branch ${branch}"
-                        
-        //                 dir(service) {
-        //                     checkout([
-        //                         $class: 'GitSCM',
-        //                         branches: [[name: "*/${branch}"]],
-        //                         doGenerateSubmoduleConfigurations: false,
-        //                         extensions: [],
-        //                         submoduleCfg: [],
-        //                         userRemoteConfigs: [[
-        //                             url: "${GIT_REPO_URL}"
-        //                         ]]
-        //                     ])
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
+        stage('Build Services') {
+            steps {
+                script {
+                    def serviceList = env.SERVICES.split(',')
+                    for (service in serviceList) {
+                        dir(service) {
+                            echo "Building ${service}..."
+                            sh "./mvnw clean package -DskipTests"
+                        }
+                    }
+                }
+            }
+        }
         
         stage('Build and Push Docker Images') {
             steps {
                 script {
-                    // Login to Docker Hub at the beginning
-                    // withCredentials([string(credentialsId: DOCKERHUB_CREDENTIALS, variable: 'DOCKER_PWD')]) {
-                    //     sh "echo ${DOCKER_PWD} | docker login -u ${DOCKER_HUB_USERNAME} --password-stdin"
-                    // }
+                    // Login to Docker Hub
                     sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKER_HUB_USERNAME --password-stdin'
                     
                     def serviceList = env.SERVICES.split(',')
@@ -128,23 +111,51 @@ pipeline {
                             } else {
                                 IMAGE_TAGS[service] = commitId
                             }
-
-                        
-                            sh """
-                               DOCKER_BUILDKIT=0 docker build -f /var/lib/jenkins/workspace/ci-cd-spring-petclinic@2/docker/Dockerfile \
-                                 -t ${DOCKER_HUB_USERNAME}/${service}:${commitId} .
-                             """            
-                             
-                            // Build Docker image with commit ID as tag
-                            sh "ls -R"
-                            ls -l docker
-                            // sh "docker build -f ../docker/Dockerfile -t ${DOCKER_HUB_USERNAME}/${service}:${commitId} ."
-                            // sh "docker build -f /var/lib/jenkins/workspace/ci-cd-spring-petclinic@2/docker/Dockerfile -t ${DOCKER_HUB_USERNAME}/${service}:${commitId} ."
-
-                            // // Push image to Docker Hub
-                            // sh "docker push ${DOCKER_HUB_USERNAME}/${service}:${commitId}"
                             
-                            // If this is the main branch, also tag as latest
+                            // Determine artifact name based on service
+                            def artifactName = "spring-petclinic-${service}"
+                            
+                            // Determine exposed port based on service
+                            def exposedPort
+                            switch(service) {
+                                case 'customers-service':
+                                    exposedPort = '8081'
+                                    break
+                                case 'vets-service':
+                                    exposedPort = '8083'
+                                    break
+                                case 'visits-service':
+                                    exposedPort = '8082'
+                                    break
+                                case 'api-gateway':
+                                    exposedPort = '8080'
+                                    break
+                                case 'config-server':
+                                    exposedPort = '8888'
+                                    break
+                                case 'discovery-server':
+                                    exposedPort = '8761'
+                                    break
+                                case 'admin-server':
+                                    exposedPort = '9090'
+                                    break
+                                default:
+                                    error("Unknown service: ${service}")
+                            }
+
+                            // Build Docker image with commit ID as tag
+                            sh """
+                                docker build \
+                                  --build-arg ARTIFACT_NAME=target/${artifactName} \
+                                  --build-arg EXPOSED_PORT=${exposedPort} \
+                                  -t ${DOCKER_HUB_USERNAME}/${service}:${commitId} \
+                                  -f docker/Dockerfile .
+                            """
+                            
+                            // Push image to Docker Hub with commit ID tag
+                            sh "docker push ${DOCKER_HUB_USERNAME}/${service}:${commitId}"
+                            
+                            // If this is the main branch, also tag as latest and push
                             if (branch == 'main') {
                                 sh "docker tag ${DOCKER_HUB_USERNAME}/${service}:${commitId} ${DOCKER_HUB_USERNAME}/${service}:latest"
                                 sh "docker push ${DOCKER_HUB_USERNAME}/${service}:latest"
@@ -155,159 +166,124 @@ pipeline {
             }
         }
         
-        // Below stage is commented out as per your request, but kept for future implementation
-        /*
-        stage('Deploy to Kubernetes') {
-            when {
-                expression { !params.CLEANUP }
-            }
-            steps {
-                script {
-                    // Make sure kubectl uses the correct config
-                    sh "mkdir -p \$HOME/.kube"
-                    sh "cp ${KUBECONFIG} \$HOME/.kube/config"
+//         stage('Deploy to Kubernetes') {
+//             steps {
+//                 script {
+//                     echo "Deploying services to Kubernetes cluster"
                     
-                    // Create or ensure namespace exists
-                    sh "kubectl create namespace petclinic-dev --dry-run=client -o yaml | kubectl apply -f -"
-                    
-                    def serviceList = env.SERVICES.split(',')
-                    for (service in serviceList) {
-                        def imageTag = IMAGE_TAGS[service]
+//                     def serviceList = env.SERVICES.split(',')
+//                     for (service in serviceList) {
+//                         def imageTag = IMAGE_TAGS[service]
                         
-                        // Generate deployment YAML
-                        writeFile file: "${service}-deployment.yaml", text: """
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: ${service}
-  namespace: petclinic-dev
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: ${service}
-  template:
-    metadata:
-      labels:
-        app: ${service}
-    spec:
-      containers:
-      - name: ${service}
-        image: ${DOCKER_HUB_USERNAME}/${service}:${imageTag}
-        ports:
-        - containerPort: 8080
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: ${service}
-  namespace: petclinic-dev
-spec:
-  type: NodePort
-  ports:
-  - port: 8080
-    targetPort: 8080
-  selector:
-    app: ${service}
-"""
+//                         echo "Deploying ${service} with image tag: ${imageTag}"
                         
-                        // Apply deployment
-                        sh "kubectl apply -f ${service}-deployment.yaml"
-                    }
+//                         // Create or update Kubernetes deployment and service
+//                         writeFile file: "k8s/${service}-deployment.yaml", text: """
+// apiVersion: apps/v1
+// kind: Deployment
+// metadata:
+//   name: ${service}
+// spec:
+//   replicas: 1
+//   selector:
+//     matchLabels:
+//       app: ${service}
+//   template:
+//     metadata:
+//       labels:
+//         app: ${service}
+//     spec:
+//       containers:
+//       - name: ${service}
+//         image: ${DOCKER_HUB_USERNAME}/${service}:${imageTag}
+//         env:
+//         - name: SPRING_PROFILES_ACTIVE
+//           value: kubernetes
+// """
+                        
+//                         // Define service port based on service type
+//                         def servicePort
+//                         switch(service) {
+//                             case 'customers-service':
+//                                 servicePort = '8081'
+//                                 break
+//                             case 'vets-service':
+//                                 servicePort = '8083'
+//                                 break
+//                             case 'visits-service':
+//                                 servicePort = '8082'
+//                                 break
+//                             case 'api-gateway':
+//                                 servicePort = '8080'
+//                                 break
+//                             case 'config-server':
+//                                 servicePort = '8888'
+//                                 break
+//                             case 'discovery-server':
+//                                 servicePort = '8761'
+//                                 break
+//                             case 'admin-server':
+//                                 servicePort = '9090'
+//                                 break
+//                             default:
+//                                 servicePort = '8080'
+//                         }
+                        
+//                         writeFile file: "k8s/${service}-service.yaml", text: """
+// apiVersion: v1
+// kind: Service
+// metadata:
+//   name: ${service}
+// spec:
+//   selector:
+//     app: ${service}
+//   ports:
+//   - port: ${servicePort}
+//     targetPort: ${servicePort}
+//   type: ClusterIP
+// """
+                        
+//                         // Apply the Kubernetes manifests
+//                         sh "kubectl apply -f k8s/${service}-deployment.yaml"
+//                         sh "kubectl apply -f k8s/${service}-service.yaml"
+//                     }
                     
-                    // Create Ingress for developer testing
-                    writeFile file: "ingress.yaml", text: """
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: petclinic-ingress
-  namespace: petclinic-dev
-  annotations:
-    kubernetes.io/ingress.class: nginx
-spec:
-  rules:
-  - host: ${BASE_DOMAIN}
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: api-gateway
-            port:
-              number: 8080
-"""
+//                     // Create ingress for API Gateway if needed
+//                     writeFile file: "k8s/ingress.yaml", text: """
+// apiVersion: networking.k8s.io/v1
+// kind: Ingress
+// metadata:
+//   name: petclinic-ingress
+// spec:
+//   rules:
+//   - host: petclinic.${BASE_DOMAIN}
+//     http:
+//       paths:
+//       - path: /
+//         pathType: Prefix
+//         backend:
+//           service:
+//             name: api-gateway
+//             port:
+//               number: 8080
+// """
                     
-                    sh "kubectl apply -f ingress.yaml"
-                    
-                    // Get NodePort for each service
-                    def serviceNodePorts = [:]
-                    for (service in serviceList) {
-                        def nodePort = sh(
-                            script: "kubectl get svc ${service} -n petclinic-dev -o jsonpath='{.spec.ports[0].nodePort}'",
-                            returnStdout: true
-                        ).trim()
-                        serviceNodePorts[service] = nodePort
-                    }
-                    
-                    // Print access information
-                    echo "================== Access Information =================="
-                    echo "Add the following to your /etc/hosts file:"
-                    echo "<worker-node-ip> ${BASE_DOMAIN}"
-                    echo ""
-                    echo "Service endpoints:"
-                    for (service in serviceList) {
-                        echo "${service}: http://${BASE_DOMAIN}:${serviceNodePorts[service]}"
-                    }
-                    echo "====================================================="
-                }
-            }
-        }
-        
-        stage('Cleanup Developer Environment') {
-            when {
-                expression { params.CLEANUP }
-            }
-            steps {
-                script {
-                    echo "Would clean up developer environment here when Kubernetes is set up"
-                    // The actual implementation would be uncommented when Kubernetes is set up
-                    /*
-                    // Make sure kubectl uses the correct config
-                    sh "mkdir -p \$HOME/.kube"
-                    sh "cp ${KUBECONFIG} \$HOME/.kube/config"
-                    
-                    // Delete all resources in the namespace
-                    sh "kubectl delete namespace petclinic-dev"
-                
-                    echo "Developer environment has been cleaned up"
-                }
-            }
-        }
-        */
-    }
+//                     sh "kubectl apply -f k8s/ingress.yaml"
+//                 }
+//             }
+//         }
+//     }
     
     post {
         always {
-            // Clean workspace
-            cleanWs()
-            
-            // Logout from Docker Hub
-            sh "docker logout"
+            echo "Pipeline execution complete"
+            sh "docker logout || true"
         }
-        
         success {
-            echo "Pipeline completed successfully!"
-            
-            // Create a link to the cleanup job
-            echo """
-<h2>Developer Environment Information</h2>
-<p>To clean up this deployment, run this job again with the CLEANUP parameter set to true or click <a href="${env.JENKINS_URL}job/developer_build/build?delay=0sec&CLEANUP=true">here</a></p>
-"""
+            echo "Pipeline executed successfully"
         }
-        
         failure {
-            echo "Pipeline failed!"
+            echo "Pipeline execution failed"
         }
     }
 }
