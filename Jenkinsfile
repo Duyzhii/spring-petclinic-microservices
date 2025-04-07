@@ -43,38 +43,43 @@ pipeline {
                 }
             }
         }
-        
-        stage('Checkout') {
-            steps {
-                script {
-                    // Clean workspace
-                    deleteDir()
+    
 
-                    // Iterate through all services and checkout only the necessary ones
-                    def serviceList = env.SERVICES.split(',')
-                    for (service in serviceList) {
-                        // Get the branch parameter name corresponding to the service
-                        def branchParam = service.toUpperCase().replaceAll('-', '_')
-                        def branch = params[branchParam]
-                        
-                        echo "Checking out ${service} from branch ${branch}"
-                        
-                        dir(service) {
-                            checkout([
-                                $class: 'GitSCM',
-                                branches: [[name: "*/${branch}"]],
-                                doGenerateSubmoduleConfigurations: false,
-                                extensions: [],
-                                submoduleCfg: [],
-                                userRemoteConfigs: [[
-                                    url: "${GIT_REPO_URL}"
-                                ]]
-                            ])
-                        }
-                    }
+        stage('Checkout') {
+    steps {
+        script {
+            // Clean workspace
+            deleteDir()
+
+            // Iterate through all services and checkout only the necessary ones
+            def serviceList = env.SERVICES.split(',')
+            for (service in serviceList) {
+                // Get the branch parameter name corresponding to the service
+                def branchParam = service.toUpperCase().replaceAll('-', '_')
+                def branch = params[branchParam]
+
+                echo "Checking out ${service} from branch ${branch}"
+
+                dir(service) {
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: "*/${branch}"]],
+                        doGenerateSubmoduleConfigurations: false,
+                        extensions: [],
+                        submoduleCfg: [],
+                        userRemoteConfigs: [[
+                            url: "${GIT_REPO_URL}"
+                        ]]
+                    ])
                 }
             }
+
+            // Add this line to check the branch being used
+            echo "Current branch: ${env.GIT_BRANCH}"
         }
+    }
+}
+
         
         stage('Build Services') {
             steps {
