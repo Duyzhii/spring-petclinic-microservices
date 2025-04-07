@@ -147,6 +147,7 @@ pipeline {
 
                             // Build Docker image with commit ID as tag
                             sh """
+                                DOCKER_BUILDKIT=1
                                 docker build \
                                   --build-arg ARTIFACT_NAME=target/${artifactName} \
                                   --build-arg EXPOSED_PORT=${exposedPort} \
