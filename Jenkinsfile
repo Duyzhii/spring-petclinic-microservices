@@ -25,6 +25,8 @@ pipeline {
         GIT_REPO_URL = 'https://github.com/Duyzhii/spring-petclinic-microservices.git'
         // Services list
         SERVICES = 'customers-service,vets-service,visits-service,api-gateway,config-server,discovery-server,admin-server'
+        DOCKER_BUILDKIT = '1'
+
     }
 
     stages {
