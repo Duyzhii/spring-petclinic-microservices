@@ -80,27 +80,44 @@ pipeline {
 }
 
         
-           stage('Build Services') {
+        stage('Build Services') {
             steps {
                 script {
+                    // Map alias => real folder name
+                    def serviceDirs = [
+                        "customers-service": "spring-petclinic-customers-service",
+                        "vets-service": "spring-petclinic-vets-service",
+                        "visits-service": "spring-petclinic-visits-service",
+                        "api-gateway": "spring-petclinic-api-gateway",
+                        "config-server": "spring-petclinic-config-server",
+                        "discovery-server": "spring-petclinic-discovery-server",
+                        "admin-server": "spring-petclinic-admin-server"
+                    ]
+
                     def serviceList = env.SERVICES.split(',')
+
                     for (service in serviceList) {
-                        dir(service) {
-                            echo "🔧 Building ${service}..."
-        
+                        def realDir = serviceDirs[service]
+                        if (!realDir) {
+                            error("❌ Unknown service: ${service}")
+                        }
+
+                        dir(realDir) {
+                            echo "🔧 Building ${service} in folder ${realDir}..."
+
                             // Build project
                             def result = sh(script: "./mvnw clean package -DskipTests", returnStatus: true)
                             if (result != 0) {
                                 error("❌ Build failed for ${service}")
                             }
-        
-                            // Kiểm tra file .jar sau khi build
-                            echo "📦 Checking .jar in ${service}/target/"
+
+                            // Check .jar after build
+                            echo "📦 Checking .jar in ${realDir}/target/"
                             def jarFile = sh(
                                 script: "find target -name '*.jar' | head -n 1",
                                 returnStdout: true
                             ).trim()
-        
+
                             if (jarFile == '') {
                                 error("❌ No .jar file found for ${service}")
                             } else {
