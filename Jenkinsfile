@@ -151,16 +151,14 @@ pipeline {
                            def DOCKER_BUILDKIT = '1'
                            def dockerfilePath = "${env.WORKSPACE}/docker/Dockerfile"
 
-                            // Build Docker image with commit ID as tag
-                            dir(env.WORKSPACE) {
-                                sh """
-                                    DOCKER_BUILDKIT=1 docker build \\
-                                      --build-arg ARTIFACT_NAME=${service}/target/${artifactName} \\
-                                      --build-arg EXPOSED_PORT=${exposedPort} \\
-                                      -t ${DOCKER_HUB_USERNAME}/${service}:${commitId} \\
-                                      -f docker/Dockerfile .
-                                """
-                            }
+                            def workspaceRoot = pwd() 
+                            sh """
+                                DOCKER_BUILDKIT=1 docker build \\
+                                  --build-arg ARTIFACT_NAME=${service}/target/${artifactName} \\
+                                  --build-arg EXPOSED_PORT=${exposedPort} \\
+                                  -t ${DOCKER_HUB_USERNAME}/${service}:${commitId} \\
+                                  -f ${workspaceRoot}/docker/Dockerfile ${workspaceRoot}
+                            """
 
                             echo "Pushing ${service} image to Docker Hub with tag ${commitId}"
                             
