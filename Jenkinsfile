@@ -80,24 +80,39 @@ pipeline {
 }
 
         
-     stage('Build Services') {
-        steps {
-            script {
-                def serviceList = env.SERVICES.split(',')
-                for (service in serviceList) {
-                    dir(service) {
-                        echo "Building ${service}..."
-                        sh "./mvnw clean package -DskipTests"
-                        
-                        // Kiểm tra file jar sau khi build
-                        echo "Checking .jar file in ${service}/target/"
-                        sh "ls -lh target/*.jar || echo '❌ No jar file found for ${service}'"
+           stage('Build Services') {
+            steps {
+                script {
+                    def serviceList = env.SERVICES.split(',')
+                    for (service in serviceList) {
+                        dir(service) {
+                            echo "🔧 Building ${service}..."
+        
+                            // Build project
+                            def result = sh(script: "./mvnw clean package -DskipTests", returnStatus: true)
+                            if (result != 0) {
+                                error("❌ Build failed for ${service}")
+                            }
+        
+                            // Kiểm tra file .jar sau khi build
+                            echo "📦 Checking .jar in ${service}/target/"
+                            def jarFile = sh(
+                                script: "find target -name '*.jar' | head -n 1",
+                                returnStdout: true
+                            ).trim()
+        
+                            if (jarFile == '') {
+                                error("❌ No .jar file found for ${service}")
+                            } else {
+                                echo "✅ Built jar: ${jarFile}"
+                            }
+                        }
                     }
                 }
             }
         }
-    }
-    
+
+
         stage('Build and Push Docker Images') {
             steps {
                 script {
