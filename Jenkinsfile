@@ -158,7 +158,7 @@ pipeline {
                                   --build-arg ARTIFACT_NAME=target/${artifactName} \
                                   --build-arg EXPOSED_PORT=${exposedPort} \
                                   -t ${DOCKER_HUB_USERNAME}/${service}:${commitId} \
-                                   -f ${dockerfilePath}.
+                                   -f ${dockerfilePath} .
                             """
 
                             echo "Pushing ${service} image to Docker Hub with tag ${commitId}"
