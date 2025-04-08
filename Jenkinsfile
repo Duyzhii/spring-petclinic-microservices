@@ -80,20 +80,24 @@ pipeline {
 }
 
         
-        stage('Build Services') {
-            steps {
-                script {
-                    def serviceList = env.SERVICES.split(',')
-                    for (service in serviceList) {
-                        dir(service) {
-                            echo "Building ${service}..."
-                            sh "./mvnw clean package -DskipTests"
-                        }
+     stage('Build Services') {
+        steps {
+            script {
+                def serviceList = env.SERVICES.split(',')
+                for (service in serviceList) {
+                    dir(service) {
+                        echo "Building ${service}..."
+                        sh "./mvnw clean package -DskipTests"
+                        
+                        // Kiểm tra file jar sau khi build
+                        echo "Checking .jar file in ${service}/target/"
+                        sh "ls -lh target/*.jar || echo '❌ No jar file found for ${service}'"
                     }
                 }
             }
         }
-        
+    }
+    
         stage('Build and Push Docker Images') {
             steps {
                 script {
