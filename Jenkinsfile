@@ -155,7 +155,7 @@ pipeline {
                             dir(env.WORKSPACE) {
                                 sh """
                                     DOCKER_BUILDKIT=1 docker build \\
-                                      --build-arg ARTIFACT_NAME=target/${artifactName} \\
+                                      --build-arg ARTIFACT_NAME=${service}/target/${artifactName} \\
                                       --build-arg EXPOSED_PORT=${exposedPort} \\
                                       -t ${DOCKER_HUB_USERNAME}/${service}:${commitId} \\
                                       -f docker/Dockerfile .
