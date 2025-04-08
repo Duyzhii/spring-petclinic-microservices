@@ -45,7 +45,7 @@ pipeline {
         }
     
 
-        stage('Checkout') {
+    stage('Checkout') {
     steps {
         script {
             // Clean workspace
@@ -159,7 +159,7 @@ pipeline {
                                   --build-arg ARTIFACT_NAME=target/${artifactName} \
                                   --build-arg EXPOSED_PORT=${exposedPort} \
                                   -t ${DOCKER_HUB_USERNAME}/${service}:${commitId} \
-                                  -f docker/Dockerfile .
+                                  -f ../docker/Dockerfile .
                             """
 
                             echo "Pushing ${service} image to Docker Hub with tag ${commitId}"
