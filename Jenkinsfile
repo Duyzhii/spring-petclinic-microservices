@@ -26,7 +26,6 @@ pipeline {
         // Services list
         SERVICES = 'customers-service,vets-service,visits-service,api-gateway,config-server,discovery-server,admin-server'
         DOCKER_BUILDKIT = '1'
-
     }
 
     stages {
@@ -150,7 +149,7 @@ pipeline {
                                     error("Unknown service: ${service}")
                             }
                            def DOCKER_BUILDKIT = '1'
-
+                           def dockerfilePath = "${env.WORKSPACE}/docker/Dockerfile"
 
                             // Build Docker image with commit ID as tag
                             sh """
@@ -159,7 +158,7 @@ pipeline {
                                   --build-arg ARTIFACT_NAME=target/${artifactName} \
                                   --build-arg EXPOSED_PORT=${exposedPort} \
                                   -t ${DOCKER_HUB_USERNAME}/${service}:${commitId} \
-                                  -f ../docker/Dockerfile .
+                                   -f ${dockerfilePath}.
                             """
 
                             echo "Pushing ${service} image to Docker Hub with tag ${commitId}"
