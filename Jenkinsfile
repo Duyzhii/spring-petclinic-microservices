@@ -76,7 +76,7 @@ pipeline {
             }
         }
 
-        stage('Build Services') {
+    stage('Build Services') {
     steps {
         script {
             def serviceList = env.SERVICES.split(',')
@@ -88,34 +88,31 @@ pipeline {
 
                 echo "🚀 Building service: ${service} (branch: ${branch})"
 
-                // Build service from root using -pl and -am
-                def buildResult = sh(
-                    script: "./mvnw -pl ${service.trim()} -am clean package -DskipTests",
-                    returnStatus: true
-                )
+                dir('.') {
+                    def buildResult = sh(
+                        script: "./mvnw -pl ${service.trim()} -am clean package -DskipTests",
+                        returnStatus: true
+                    )
 
-                if (buildResult != 0) {
-                    error("❌ Maven build failed for ${service}")
-                }
+                    if (buildResult != 0) {
+                        error("❌ Maven build failed for ${service}")
+                    }
 
-                // Check for .jar file in the service's target directory
-                def jarFile = sh(
-                    script: "find ${service.trim()}/target -name '*.jar' | head -n 1",
-                    returnStdout: true
-                ).trim()
+                    def jarFile = sh(
+                        script: "find ${service.trim()}/target -name '*.jar' | head -n 1",
+                        returnStdout: true
+                    ).trim()
 
-                if (jarFile == '') {
-                    error("❌ No .jar file found for ${service}")
-                } else {
-                    echo "✅ JAR built: ${jarFile}"
+                    if (jarFile == '') {
+                        error("❌ No .jar file found for ${service}")
+                    } else {
+                        echo "✅ JAR built: ${jarFile}"
+                    }
                 }
             }
         }
     }
 }
-
-
-
 
     stage('Build and Push Docker Images') {
     steps {
