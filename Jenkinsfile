@@ -135,6 +135,8 @@ pipeline {
                     for (service in serviceList) {
                         def branchParam = service.toUpperCase().replaceAll('-', '_')
                         def branch = params[branchParam]
+                        def serviceDir = "spring-petclinic-${service}"
+
                         
                         dir(service) {
                             // Get the latest commit ID for the branch
@@ -148,6 +150,15 @@ pipeline {
                             } else {
                                 IMAGE_TAGS[service] = commitId
                             }
+                             def jarFile = sh(
+                                script: "find ${serviceDir}/target -name '*.jar' | grep -v original | head -n 1",
+                                returnStdout: true
+                            ).trim()
+                            
+                            if (jarFile == '') {
+                                error("❌ No .jar file found for ${service}")
+                            }
+                
                             
                             // Determine artifact name based on service
                             def artifactName = "spring-petclinic-${service}"
@@ -181,16 +192,16 @@ pipeline {
                             }
                            def DOCKER_BUILDKIT = '1'
                            def dockerfilePath = "${env.WORKSPACE}/docker/Dockerfile"
-
-                            def workspaceRoot = pwd() 
+                            def workspaceRoot = pwd()
+                
                             sh """
                                 DOCKER_BUILDKIT=1 docker build \\
-                                  --build-arg ARTIFACT_NAME=${service}/target/${artifactName} \\
+                                  --build-arg ARTIFACT_NAME=${jarFile} \\
                                   --build-arg EXPOSED_PORT=${exposedPort} \\
                                   -t ${DOCKER_HUB_USERNAME}/${service}:${commitId} \\
                                   -f ${workspaceRoot}/docker/Dockerfile ${workspaceRoot}
                             """
-
+                            
                             echo "Pushing ${service} image to Docker Hub with tag ${commitId}"
                             
                             // Push image to Docker Hub with commit ID tag
