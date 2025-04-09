@@ -85,7 +85,7 @@ pipeline {
                     def serviceList = env.SERVICES.split(',')
 
                     echo "🚀 Building all services at once from root..."
-                    def buildResult = sh(script: "./mvnw clean package -DskipTests", returnStatus: true)
+                    def buildResult = sh(script: "mvnw clean package -DskipTests", returnStatus: true)
                     if (buildResult != 0) {
                         error("❌ Maven build failed at root level")
                     }
