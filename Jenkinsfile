@@ -85,10 +85,14 @@ pipeline {
                     def serviceList = env.SERVICES.split(',')
 
                     echo "🚀 Building all services at once from root..."
-                    def buildResult = sh(script: "mvnw clean package -DskipTests", returnStatus: true)
+
+                    sh 'chmod +x ./mvnw'
+                    
+                    def buildResult = sh(script: "./mvnw clean package -DskipTests", returnStatus: true)
                     if (buildResult != 0) {
                         error("❌ Maven build failed at root level")
                     }
+
 
                     for (service in serviceList) {
                         def branchParam = service.toUpperCase().replaceAll('-', '_')
