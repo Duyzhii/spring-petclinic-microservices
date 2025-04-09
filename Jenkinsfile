@@ -17,7 +17,7 @@ pipeline {
     }
     
     environment {
-        // Docker Hub credentials
+        // Docker Hub credentials - now using usernamePassword type
         DOCKERHUB_CREDENTIALS = credentials('duyzhii-dockerhub')
         DOCKER_HUB_USERNAME = 'duyzhii'
         // Base domain for developer testing
@@ -158,9 +158,11 @@ pipeline {
         stage('Build and Push Docker Images') {
             steps {
                 script {
-                    // Login to Docker Hub
-                    withCredentials([string(credentialsId: 'duyzhii-dockerhub', variable: 'DOCKERHUB_CREDENTIALS_PSW')]) {
-                        sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKER_HUB_USERNAME --password-stdin'
+                    // Login to Docker Hub - using the correct credential type
+                    withCredentials([usernamePassword(credentialsId: 'duyzhii-dockerhub', 
+                                                     usernameVariable: 'DOCKER_USERNAME', 
+                                                     passwordVariable: 'DOCKER_PASSWORD')]) {
+                        sh 'echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin'
                     }
                     
                     def serviceList = env.SERVICES.split(',')
