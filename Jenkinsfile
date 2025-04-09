@@ -24,8 +24,7 @@ pipeline {
         // Git repository URL
         GIT_REPO_URL = 'https://github.com/Duyzhii/spring-petclinic-microservices.git'
         // Services list
-        SERVICES = 'spring-petclinic-customers-service,spring-petclinic-vets-service,spring-petclinic-visits-service,spring-petclinic-api-gateway,spring-petclinic-config-server, spring-petclinic-discovery-server, spring-petclinic-admin-server'
-        // Docker Hub credentials password 
+        SERVICES = 'spring-petclinic-customers-service,spring-petclinic-vets-service,spring-petclinic-visits-service,spring-petclinic-api-gateway,spring-petclinic-config-server, spring-petclinic-discovery-server, spring-petclinic-admin-server' 
         DOCKER_BUILDKIT = '1'
     }
 
@@ -43,55 +42,57 @@ pipeline {
                 }
             }
         }
-    
+        stage('Checkout') {
+            steps {
+                script {
+                    // Clean workspace
+                    deleteDir()
 
-    stage('Checkout') {
-    steps {
-        script {
-            // Clean workspace
-            deleteDir()
+                    // Iterate through all services and checkout only the necessary ones
+                    def serviceList = env.SERVICES.split(',')
+                    for (service in serviceList) {
+                        def shortName = service.trim().replace('spring-petclinic-', '')
+                        def branchParam = shortName.toUpperCase().replaceAll('-', '_')
+                        def branch = params[branchParam] ?: 'main'
 
-            // Iterate through all services and checkout only the necessary ones
-            def serviceList = env.SERVICES.split(',')
-            for (service in serviceList) {
-                // Get the branch parameter name corresponding to the service
-                def branchParam = service.toUpperCase().replaceAll('-', '_')
-                def branch = params[branchParam]
+                        echo "📥 Checking out ${service} from branch ${branch}"
 
-                echo "Checking out ${service} from branch ${branch}"
+                        dir(service.trim()) {
+                            checkout([
+                                $class: 'GitSCM',
+                                branches: [[name: "*/${branch}"]],
+                                doGenerateSubmoduleConfigurations: false,
+                                extensions: [],
+                                submoduleCfg: [],
+                                userRemoteConfigs: [[
+                                    url: "${GIT_REPO_URL}"
+                                ]]
+                            ])
+                        }
+                    }
 
-                dir(service) {
-                    checkout([
-                        $class: 'GitSCM',
-                        branches: [[name: "*/${branch}"]],
-                        doGenerateSubmoduleConfigurations: false,
-                        extensions: [],
-                        submoduleCfg: [],
-                        userRemoteConfigs: [[url: "${GIT_REPO_URL}"]]
-                    ])
+                    echo "🔎 Finished checking out services"
                 }
             }
-
-            // Add this line to check the branch being used
-            echo "Current branch: ${env.GIT_BRANCH}"
         }
-    }
-}
+
         stage('Build Services') {
     steps {
         script {
             def serviceList = env.SERVICES.split(',')
 
             for (service in serviceList) {
-                def branchParam = service.toUpperCase().replaceAll('-', '_')
-                def branch = params[branchParam]
+                def shortName = service.trim().replace('spring-petclinic-', '')
+                def branchParam = shortName.toUpperCase().replaceAll('-', '_')
+                def branch = params[branchParam] ?: 'main'
+
                 echo "🚀 Building service: ${service} (branch: ${branch})"
 
-                dir(service) {
+                dir(service.trim()) {
                     def commitId = sh(script: "git rev-parse HEAD", returnStdout: true).trim()
                     echo "🔖 Commit ID: ${commitId}"
 
-                    def buildResult = sh(script: "mvnw clean package -DskipTests", returnStatus: true)
+                    def buildResult = sh(script: "./mvnw clean package -DskipTests", returnStatus: true)
                     if (buildResult != 0) {
                         error("❌ Maven build failed for ${service}")
                     }
@@ -108,20 +109,23 @@ pipeline {
     }
 }
 
-        stage('Build and Push Docker Images') {
-            steps {
-                script {
-                    // Login to Docker Hub
-                    sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKER_HUB_USERNAME --password-stdin'
-                    
-                    def serviceList = env.SERVICES.split(',')
-                    for (service in serviceList) {
-                        def branchParam = service.toUpperCase().replaceAll('-', '_')
-                        def branch = params[branchParam]
-                        def serviceDir = "spring-petclinic-${service}"
 
-                        
-                        dir(service) {
+    stage('Build and Push Docker Images') {
+    steps {
+        script {
+            // Login to Docker Hub
+            sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKER_HUB_USERNAME --password-stdin'
+            
+            def serviceList = env.SERVICES.split(',')
+
+            for (service in serviceList) {
+                def shortName = service.trim().replace('spring-petclinic-', '')
+                def branchParam = shortName.toUpperCase().replaceAll('-', '_')
+                def branch = params[branchParam] ?: 'main'
+
+                echo "🐳 Building Docker image for ${service} (branch: ${branch})"
+
+                dir(service.trim()) {
                             // Get the latest commit ID for the branch
                             def commitId = sh(script: "git rev-parse HEAD", returnStdout: true).trim()
                             
