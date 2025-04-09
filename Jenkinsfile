@@ -88,26 +88,33 @@ pipeline {
 
                 echo "🚀 Building service: ${service} (branch: ${branch})"
 
-                dir(service.trim()) {
-                    def commitId = sh(script: "git rev-parse HEAD", returnStdout: true).trim()
-                    echo "🔖 Commit ID: ${commitId}"
+                // Build service from root using -pl and -am
+                def buildResult = sh(
+                    script: "./mvnw -pl ${service.trim()} -am clean package -DskipTests",
+                    returnStatus: true
+                )
 
-                    def buildResult = sh(script: "./mvnw clean package -DskipTests", returnStatus: true)
-                    if (buildResult != 0) {
-                        error("❌ Maven build failed for ${service}")
-                    }
+                if (buildResult != 0) {
+                    error("❌ Maven build failed for ${service}")
+                }
 
-                    def jarFile = sh(script: "find target -name '*.jar' | head -n 1", returnStdout: true).trim()
-                    if (jarFile == '') {
-                        error("❌ No .jar file found for ${service}")
-                    } else {
-                        echo "✅ JAR built: ${jarFile}"
-                    }
+                // Check for .jar file in the service's target directory
+                def jarFile = sh(
+                    script: "find ${service.trim()}/target -name '*.jar' | head -n 1",
+                    returnStdout: true
+                ).trim()
+
+                if (jarFile == '') {
+                    error("❌ No .jar file found for ${service}")
+                } else {
+                    echo "✅ JAR built: ${jarFile}"
                 }
             }
         }
     }
 }
+
+
 
 
     stage('Build and Push Docker Images') {
