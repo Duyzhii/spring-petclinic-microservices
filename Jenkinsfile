@@ -86,6 +86,8 @@ pipeline {
                 def branchParam = shortName.toUpperCase().replaceAll('-', '_')
                 def branch = params[branchParam] ?: 'main'
 
+                sh 'ls -la'
+
                 echo "🚀 Building service: ${service} (branch: ${branch})"
 
                 dir('.') {
