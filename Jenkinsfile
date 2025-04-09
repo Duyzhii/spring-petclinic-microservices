@@ -52,42 +52,42 @@ pipeline {
                 script {
                     // Clean workspace
                     deleteDir()
+                    
+                    // First checkout the main repository for Docker files and project structure
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: "*/main"]],
+                        doGenerateSubmoduleConfigurations: false,
+                        extensions: [],
+                        submoduleCfg: [],
+                        userRemoteConfigs: [[
+                            url: "${GIT_REPO_URL}"
+                        ]]
+                    ])
 
-                    // Iterate through all services and checkout only the necessary ones
+                    // Now checkout specific branches for each service if needed
                     def serviceList = env.SERVICES.split(',')
                     for (service in serviceList) {
                         def shortName = service.trim().replace('spring-petclinic-', '')
                         def branchParam = shortName.toUpperCase().replaceAll('-', '_')
                         def branch = params[branchParam] ?: 'main'
 
-                        echo "📥 Checking out ${service} from branch ${branch}"
+                        if (branch != 'main') {
+                            echo "📥 Checking out ${service} from branch ${branch}"
 
-                        dir(service.trim()) {
-                            checkout([
-                                $class: 'GitSCM',
-                                branches: [[name: "*/${branch}"]],
-                                doGenerateSubmoduleConfigurations: false,
-                                extensions: [],
-                                submoduleCfg: [],
-                                userRemoteConfigs: [[
-                                    url: "${GIT_REPO_URL}"
-                                ]]
-                            ])
+                            dir(service.trim()) {
+                                checkout([
+                                    $class: 'GitSCM',
+                                    branches: [[name: "*/${branch}"]],
+                                    doGenerateSubmoduleConfigurations: false,
+                                    extensions: [],
+                                    submoduleCfg: [],
+                                    userRemoteConfigs: [[
+                                        url: "${GIT_REPO_URL}"
+                                    ]]
+                                ])
+                            }
                         }
-                    }
-
-                    // Also checkout the main project for the Docker files
-                    dir('docker') {
-                        checkout([
-                            $class: 'GitSCM',
-                            branches: [[name: "*/main"]],
-                            doGenerateSubmoduleConfigurations: false,
-                            extensions: [],
-                            submoduleCfg: [],
-                            userRemoteConfigs: [[
-                                url: "${GIT_REPO_URL}"
-                            ]]
-                        ])
                     }
 
                     echo "🔎 Finished checking out services"
@@ -99,7 +99,11 @@ pipeline {
             steps {
                 script {
                     def serviceList = env.SERVICES.split(',')
-
+                    
+                    // First build the parent POM to ensure dependencies are available
+                    sh "mvn clean install -N -DskipTests"
+                    
+                    // Now build each service
                     for (service in serviceList) {
                         def shortName = service.trim().replace('spring-petclinic-', '')
                         def branchParam = shortName.toUpperCase().replaceAll('-', '_')
@@ -116,10 +120,15 @@ pipeline {
                                 error("❌ Maven build failed for ${service}")
                             }
 
-                            // Store service specific jar path
-                            def jarFile = sh(script: "find target -name '*.jar' | grep -v original | head -n 1", returnStdout: true).trim()
-                            if (jarFile == '') {
-                                error("❌ No .jar file found for ${service}")
+                            // Verify target directory and list its contents for debugging
+                            sh "ls -la"
+                            sh "ls -la target || echo 'Target directory not found!'"
+                            
+                            // Store service specific jar path - IMPORTANT: Note the "./" prefix to ensure we're in the correct dir
+                            def jarFile = sh(script: "find ./target -name '*.jar' | grep -v original | head -n 1 || echo ''", returnStdout: true).trim()
+                            
+                            if (jarFile == '' || jarFile.contains("not found")) {
+                                error("❌ No .jar file found for ${service} in directory ${pwd()}")
                             } else {
                                 echo "✅ JAR built: ${jarFile}"
                                 // Store the jar path in the environment for later use
@@ -161,10 +170,17 @@ pipeline {
                         def branchParam = shortName.toUpperCase().replaceAll('-', '_')
                         def branch = params[branchParam] ?: 'main'
                         def commitId = env."${shortName.toUpperCase()}_COMMIT"
-                        def jarFile = env."${shortName.toUpperCase()}_JAR"
+                        def jarFile = env."${shortName.toUpperCase()}_JAR" ?: ''
+                        
+                        // Remove leading ./ if present in JAR path
+                        if (jarFile.startsWith('./')) {
+                            jarFile = jarFile.substring(2)
+                        }
+                        
                         def imageTag = IMAGE_TAGS[shortName] ?: commitId  // Use stored tag or fallback to commit ID
 
                         echo "🐳 Building Docker image for ${shortName} (branch: ${branch}, tag: ${imageTag})"
+                        echo "Using JAR file: ${jarFile}"
 
                         // Determine exposed port based on service
                         def exposedPort
@@ -198,18 +214,23 @@ pipeline {
                         }
                         
                         def workspaceRoot = pwd()
-                        def dockerfilePath = "${workspaceRoot}/docker/Dockerfile"
                         def servicePath = "${workspaceRoot}/${service.trim()}"
                         
-                        // Full path to the JAR file
-                        def fullJarPath = "${servicePath}/${jarFile}"
+                        // Make sure we have a valid JAR file
+                        if (jarFile == '') {
+                            error("No JAR file found for ${service}")
+                        }
                         
+                        // Verify Docker file exists
+                        sh "ls -la ${workspaceRoot}/docker/ || echo 'Docker directory not found'"
+                        
+                        // Use a multi-stage Dockerfile approach if possible
                         sh """
                             DOCKER_BUILDKIT=1 docker build \\
                               --build-arg ARTIFACT_NAME=${jarFile} \\
                               --build-arg EXPOSED_PORT=${exposedPort} \\
                               -t ${DOCKER_HUB_USERNAME}/${shortName}:${commitId} \\
-                              -f ${dockerfilePath} ${servicePath}
+                              --file ${workspaceRoot}/docker/Dockerfile ${servicePath}
                         """
 
                         echo "📤 Pushing ${shortName} image to Docker Hub with tag ${commitId}"
