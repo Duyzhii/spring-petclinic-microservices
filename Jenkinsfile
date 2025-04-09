@@ -92,7 +92,7 @@ pipeline {
 
                 dir('.') {
                     def buildResult = sh(
-                        script: "./mvnw -pl ${service.trim()} -am clean package -DskipTests",
+                        script: "mvn -pl ${service.trim()} -am clean package -DskipTests",
                         returnStatus: true
                     )
 
