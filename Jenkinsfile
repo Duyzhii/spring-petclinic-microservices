@@ -3,14 +3,14 @@ pipeline {
     
     parameters {
         // Parameters to specify which branch to deploy for each service
-        string(name: 'CUSTOMERS_SERVICE', defaultValue: 'main', description: 'Branch for customers-service')
-        string(name: 'VETS_SERVICE', defaultValue: 'main', description: 'Branch for vets-service')
-        string(name: 'VISITS_SERVICE', defaultValue: 'main', description: 'Branch for visits-service')
-        string(name: 'API_GATEWAY', defaultValue: 'main', description: 'Branch for api-gateway')
-        string(name: 'CONFIG_SERVER', defaultValue: 'main', description: 'Branch for config-server')
-        string(name: 'DISCOVERY_SERVER', defaultValue: 'main', description: 'Branch for discovery-server')
-        string(name: 'ADMIN_SERVER', defaultValue: 'main', description: 'Branch for admin-server')
-        
+            string(name: 'CUSTOMERS_SERVICE', defaultValue: 'main', description: 'Branch for customers-service')
+            string(name: 'VETS_SERVICE', defaultValue: 'main', description: 'Branch for vets-service')
+            string(name: 'VISITS_SERVICE', defaultValue: 'main', description: 'Branch for visits-service')
+            string(name: 'API_GATEWAY', defaultValue: 'main', description: 'Branch for api-gateway')
+            string(name: 'CONFIG_SERVER', defaultValue: 'main', description: 'Branch for config-server')
+            string(name: 'DISCOVERY_SERVER', defaultValue: 'main', description: 'Branch for discovery-server')
+            string(name: 'ADMIN_SERVER', defaultValue: 'main', description: 'Branch for admin-server')
+            
         // Option to clean up developer environment
         booleanParam(name: 'CLEANUP', defaultValue: false, description: 'Clean up developer environment')
     }
@@ -80,54 +80,49 @@ pipeline {
 }
 
         
-        stage('Build Services') {
-            steps {
-                script {
-                    // Map alias => real folder name
-                    def serviceDirs = [
-                        "customers-service": "spring-petclinic-customers-service",
-                        "vets-service": "spring-petclinic-vets-service",
-                        "visits-service": "spring-petclinic-visits-service",
-                        "api-gateway": "spring-petclinic-api-gateway",
-                        "config-server": "spring-petclinic-config-server",
-                        "discovery-server": "spring-petclinic-discovery-server",
-                        "admin-server": "spring-petclinic-admin-server"
-                    ]
+      stage('Build Services') {
+    steps {
+        script {
+            def serviceList = env.SERVICES.split(',')
 
-                    def serviceList = env.SERVICES.split(',')
+            for (service in serviceList) {
+                def branchParam = service.toUpperCase().replaceAll('-', '_')
+                def branch = params[branchParam]
 
-                    for (service in serviceList) {
-                        def realDir = serviceDirs[service]
-                        if (!realDir) {
-                            error("❌ Unknown service: ${service}")
-                        }
+                dir(service) {
+                    // Get the latest commit ID for the branch
+                    def commitId = sh(script: "git rev-parse HEAD", returnStdout: true).trim()
 
-                        dir(realDir) {
-                            echo "🔧 Building ${service} in folder ${realDir}..."
+                    echo "🔧 Building ${service} from branch ${branch} with commit ID ${commitId}"
 
-                            // Build project
-                            def result = sh(script: "./mvnw clean package -DskipTests", returnStatus: true)
-                            if (result != 0) {
-                                error("❌ Build failed for ${service}")
-                            }
+                    // Build project
+                    def result = sh(script: "mvn clean package -DskipTests", returnStatus: true)
 
-                            // Check .jar after build
-                            echo "📦 Checking .jar in ${realDir}/target/"
-                            def jarFile = sh(
-                                script: "find target -name '*.jar' | head -n 1",
-                                returnStdout: true
-                            ).trim()
 
-                            if (jarFile == '') {
-                                error("❌ No .jar file found for ${service}")
-                            } else {
-                                echo "✅ Built jar: ${jarFile}"
-                            }
-                        }
+                    sh "ls -la"
+
+
+                    if (result != 0) {
+                        error("❌ Build failed for ${service}")
+                    }
+
+                    // Check .jar after build
+                    echo "📦 Checking .jar in ${service}/target/"
+                    def jarFile = sh(
+                        script: "find target -name '*.jar' | head -n 1",
+                        returnStdout: true
+                    ).trim()
+
+                    if (jarFile == '') {
+                        error("❌ No .jar file found for ${service}")
+                    } else {
+                        echo "✅ Built jar: ${jarFile}"
                     }
                 }
             }
         }
+    }
+}
 
 
         stage('Build and Push Docker Images') {
