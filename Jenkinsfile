@@ -78,47 +78,38 @@ pipeline {
         }
     }
 }
+        stage('Build Services') {
+    steps {
+        script {
+            def serviceList = env.SERVICES.split(',')
 
-                stage('Build Services') {
-            steps {
-                script {
-                    def serviceList = env.SERVICES.split(',')
+            for (service in serviceList) {
+                def branchParam = service.toUpperCase().replaceAll('-', '_')
+                def branch = params[branchParam]
+                def realDir = "spring-petclinic-${service}"
 
-                    echo "🚀 Building all services at once from root..."
+                echo "🚀 Building service: ${service} (branch: ${branch})"
 
-                    sh 'chmod +x ./mvnw'
-                    
-                    def buildResult = sh(script: "./mvnw clean package -DskipTests", returnStatus: true)
+                dir(realDir) {
+                    def commitId = sh(script: "git rev-parse HEAD", returnStdout: true).trim()
+                    echo "🔖 Commit ID: ${commitId}"
+
+                    def buildResult = sh(script: "mvnw clean package -DskipTests", returnStatus: true)
                     if (buildResult != 0) {
-                        error("❌ Maven build failed at root level")
+                        error("❌ Maven build failed for ${service}")
                     }
 
-
-                    for (service in serviceList) {
-                        def branchParam = service.toUpperCase().replaceAll('-', '_')
-                        def branch = params[branchParam]
-                        def realDir = "spring-petclinic-${service}"
-
-                        def commitId = sh(script: "git rev-parse HEAD", returnStdout: true).trim()
-                        echo "📦 Checking .jar in ${realDir}/target/ (branch: ${branch}, commit: ${commitId})"
-
-                        dir(realDir) {
-                            def jarFile = sh(
-                                script: "find target -name '*.jar' | head -n 1",
-                                returnStdout: true
-                            ).trim()
-
-                            if (jarFile == '') {
-                                error("❌ No .jar file found for ${service}")
-                            } else {
-                                echo "✅ Built jar for ${service}: ${jarFile}"
-                            }
-                        }
+                    def jarFile = sh(script: "find target -name '*.jar' | head -n 1", returnStdout: true).trim()
+                    if (jarFile == '') {
+                        error("❌ No .jar file found for ${service}")
+                    } else {
+                        echo "✅ JAR built: ${jarFile}"
                     }
                 }
             }
         }
-
+    }
+}
 
         stage('Build and Push Docker Images') {
             steps {
