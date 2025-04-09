@@ -76,7 +76,7 @@ pipeline {
             }
         }
 
-    stage('Build Services') {
+   stage('Build Services') {
     steps {
         script {
             def serviceList = env.SERVICES.split(',')
@@ -86,25 +86,18 @@ pipeline {
                 def branchParam = shortName.toUpperCase().replaceAll('-', '_')
                 def branch = params[branchParam] ?: 'main'
 
-                sh 'ls -la'
-
                 echo "🚀 Building service: ${service} (branch: ${branch})"
 
-                dir('.') {
-                    def buildResult = sh(
-                        script: "mvn -pl ${service.trim()} -am clean package -DskipTests",
-                        returnStatus: true
-                    )
+                dir(service.trim()) {
+                    def commitId = sh(script: "git rev-parse HEAD", returnStdout: true).trim()
+                    echo "🔖 Commit ID: ${commitId}"
 
+                    def buildResult = sh(script: "mvn clean package -DskipTests", returnStatus: true)
                     if (buildResult != 0) {
                         error("❌ Maven build failed for ${service}")
                     }
 
-                    def jarFile = sh(
-                        script: "find ${service.trim()}/target -name '*.jar' | head -n 1",
-                        returnStdout: true
-                    ).trim()
-
+                    def jarFile = sh(script: "find target -name '*.jar' | head -n 1", returnStdout: true).trim()
                     if (jarFile == '') {
                         error("❌ No .jar file found for ${service}")
                     } else {
