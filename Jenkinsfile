@@ -79,50 +79,41 @@ pipeline {
     }
 }
 
-        
-      stage('Build Services') {
-    steps {
-        script {
-            def serviceList = env.SERVICES.split(',')
+                stage('Build Services') {
+            steps {
+                script {
+                    def serviceList = env.SERVICES.split(',')
 
-            for (service in serviceList) {
-                def branchParam = service.toUpperCase().replaceAll('-', '_')
-                def branch = params[branchParam]
-
-                dir(service) {
-                    // Get the latest commit ID for the branch
-                    def commitId = sh(script: "git rev-parse HEAD", returnStdout: true).trim()
-
-                    echo "🔧 Building ${service} from branch ${branch} with commit ID ${commitId}"
-
-                    // Build project
-                    def result = sh(script: "mvn clean package -DskipTests", returnStatus: true)
-
-
-                    sh "ls -la"
-
-
-                    if (result != 0) {
-                        error("❌ Build failed for ${service}")
+                    echo "🚀 Building all services at once from root..."
+                    def buildResult = sh(script: "./mvnw clean package -DskipTests", returnStatus: true)
+                    if (buildResult != 0) {
+                        error("❌ Maven build failed at root level")
                     }
 
-                    // Check .jar after build
-                    echo "📦 Checking .jar in ${service}/target/"
-                    def jarFile = sh(
-                        script: "find target -name '*.jar' | head -n 1",
-                        returnStdout: true
-                    ).trim()
+                    for (service in serviceList) {
+                        def branchParam = service.toUpperCase().replaceAll('-', '_')
+                        def branch = params[branchParam]
+                        def realDir = "spring-petclinic-${service}"
 
-                    if (jarFile == '') {
-                        error("❌ No .jar file found for ${service}")
-                    } else {
-                        echo "✅ Built jar: ${jarFile}"
+                        def commitId = sh(script: "git rev-parse HEAD", returnStdout: true).trim()
+                        echo "📦 Checking .jar in ${realDir}/target/ (branch: ${branch}, commit: ${commitId})"
+
+                        dir(realDir) {
+                            def jarFile = sh(
+                                script: "find target -name '*.jar' | head -n 1",
+                                returnStdout: true
+                            ).trim()
+
+                            if (jarFile == '') {
+                                error("❌ No .jar file found for ${service}")
+                            } else {
+                                echo "✅ Built jar for ${service}: ${jarFile}"
+                            }
+                        }
                     }
                 }
             }
         }
-    }
-}
 
 
         stage('Build and Push Docker Images') {
@@ -201,7 +192,7 @@ pipeline {
                                   -t ${DOCKER_HUB_USERNAME}/${service}:${commitId} \\
                                   -f ${workspaceRoot}/docker/Dockerfile ${workspaceRoot}
                             """
-                            
+
                             echo "Pushing ${service} image to Docker Hub with tag ${commitId}"
                             
                             // Push image to Docker Hub with commit ID tag
