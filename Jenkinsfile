@@ -24,13 +24,8 @@ pipeline {
         // Git repository URL
         GIT_REPO_URL = 'https://github.com/Duyzhii/spring-petclinic-microservices.git'
         // Services list
-        SERVICES = 'spring-petclinic-customers-service,
-        spring-petclinic-vets-service,
-        spring-petclinic-visits-service,
-        spring-petclinic-api-gateway,
-        spring-petclinic-config-server,
-        spring-petclinic-discovery-server,
-        spring-petclinic-admin-server'
+        SERVICES = 'spring-petclinic-customers-service,spring-petclinic-vets-service,spring-petclinic-visits-service,spring-petclinic-api-gateway,spring-petclinic-config-server, spring-petclinic-discovery-server, spring-petclinic-admin-server'
+        // Docker Hub credentials password 
         DOCKER_BUILDKIT = '1'
     }
 
@@ -96,7 +91,7 @@ pipeline {
                     def commitId = sh(script: "git rev-parse HEAD", returnStdout: true).trim()
                     echo "🔖 Commit ID: ${commitId}"
 
-                    def buildResult = sh(script: "./mvnw clean package -DskipTests", returnStatus: true)
+                    def buildResult = sh(script: "mvnw clean package -DskipTests", returnStatus: true)
                     if (buildResult != 0) {
                         error("❌ Maven build failed for ${service}")
                     }
