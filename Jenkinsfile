@@ -59,16 +59,15 @@ pipeline {
 
                 echo "Checking out ${service} from branch ${branch}"
 
-                dir(service) {
+                def realDir = "spring-petclinic-${service}"
+                dir(realDir) {
                     checkout([
                         $class: 'GitSCM',
                         branches: [[name: "*/${branch}"]],
                         doGenerateSubmoduleConfigurations: false,
                         extensions: [],
                         submoduleCfg: [],
-                        userRemoteConfigs: [[
-                            url: "${GIT_REPO_URL}"
-                        ]]
+                        userRemoteConfigs: [[url: "${GIT_REPO_URL}"]]
                     ])
                 }
             }
