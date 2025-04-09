@@ -24,7 +24,13 @@ pipeline {
         // Git repository URL
         GIT_REPO_URL = 'https://github.com/Duyzhii/spring-petclinic-microservices.git'
         // Services list
-        SERVICES = 'customers-service,vets-service,visits-service,api-gateway,config-server,discovery-server,admin-server'
+        SERVICES = 'spring-petclinic-customers-service,
+        spring-petclinic-vets-service,
+        spring-petclinic-visits-service,
+        spring-petclinic-api-gateway,
+        spring-petclinic-config-server,
+        spring-petclinic-discovery-server,
+        spring-petclinic-admin-server'
         DOCKER_BUILDKIT = '1'
     }
 
@@ -59,8 +65,7 @@ pipeline {
 
                 echo "Checking out ${service} from branch ${branch}"
 
-                def realDir = "spring-petclinic-${service}"
-                dir(realDir) {
+                dir(service) {
                     checkout([
                         $class: 'GitSCM',
                         branches: [[name: "*/${branch}"]],
@@ -85,15 +90,13 @@ pipeline {
             for (service in serviceList) {
                 def branchParam = service.toUpperCase().replaceAll('-', '_')
                 def branch = params[branchParam]
-                def realDir = "spring-petclinic-${service}"
-
                 echo "🚀 Building service: ${service} (branch: ${branch})"
 
-                dir(realDir) {
+                dir(service) {
                     def commitId = sh(script: "git rev-parse HEAD", returnStdout: true).trim()
                     echo "🔖 Commit ID: ${commitId}"
 
-                    def buildResult = sh(script: "mvnw clean package -DskipTests", returnStatus: true)
+                    def buildResult = sh(script: "./mvnw clean package -DskipTests", returnStatus: true)
                     if (buildResult != 0) {
                         error("❌ Maven build failed for ${service}")
                     }
